@@ -10,8 +10,17 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.VisibleForTesting;
+
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.util.Clock;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.DefaultLoadControl;
+import androidx.media3.exoplayer.LoadControl;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.analytics.DefaultAnalyticsCollector;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
+
 import io.flutter.plugins.videoplayer.ExoPlayerEventListener;
 import io.flutter.plugins.videoplayer.VideoAsset;
 import io.flutter.plugins.videoplayer.VideoPlayer;
@@ -29,6 +38,7 @@ import io.flutter.view.TextureRegistry.SurfaceProducer;
 public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProducer.Callback {
   // True when the ExoPlayer instance has a null surface.
   private boolean needsSurface = true;
+
   /**
    * Creates a texture video player.
    *
@@ -52,9 +62,34 @@ public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProd
         asset.getMediaItem(),
         options,
         () -> {
+          // --- Custom, memory-friendly builder (good for short-form/TikTok-like feeds) ---
+          // Buffer profile: quick start, small RAM, reasonable stability.
+          final LoadControl loadControl =
+              new DefaultLoadControl.Builder()
+                  .setBufferDurationsMs(
+                      /* minBufferMs */ 5_000,
+                      /* maxBufferMs */ 12_000,
+                      /* bufferForPlaybackMs */ 700,
+                      /* bufferForPlaybackAfterRebufferMs */ 1_800)
+                  // Cap allocator bytes to keep RAM bounded; adjust for your bitrate ladder.
+                  .setTargetBufferBytes(12 * 1024 * 1024) // ~12 MB
+                  .setPrioritizeTimeOverSizeThresholds(true)
+                  .build();
+
+          DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
+          DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
+          DefaultBandwidthMeter bandwidthMeter = DefaultBandwidthMeter.getSingletonInstance(context);
+          DefaultAnalyticsCollector analyticsCollector = new DefaultAnalyticsCollector(Clock.DEFAULT);
+
           ExoPlayer.Builder builder =
               new ExoPlayer.Builder(context)
-                  .setMediaSourceFactory(asset.getMediaSourceFactory(context));
+                  .setMediaSourceFactory(asset.getMediaSourceFactory(context))
+                  .setRenderersFactory(renderersFactory)
+                  .setTrackSelector(trackSelector)
+                  .setLoadControl(loadControl)
+                  .setBandwidthMeter(bandwidthMeter)
+                  .setAnalyticsCollector(analyticsCollector);
+
           return builder.build();
         });
   }
