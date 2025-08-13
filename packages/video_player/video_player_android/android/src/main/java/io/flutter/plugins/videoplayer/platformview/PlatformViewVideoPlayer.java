@@ -8,8 +8,17 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.util.Clock;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.DefaultLoadControl;
+import androidx.media3.exoplayer.LoadControl;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.analytics.DefaultAnalyticsCollector;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
+
 import io.flutter.plugins.videoplayer.ExoPlayerEventListener;
 import io.flutter.plugins.videoplayer.VideoAsset;
 import io.flutter.plugins.videoplayer.VideoPlayer;
@@ -51,10 +60,31 @@ public class PlatformViewVideoPlayer extends VideoPlayer {
         asset.getMediaItem(),
         options,
         () -> {
-          ExoPlayer.Builder builder =
-              new ExoPlayer.Builder(context)
-                  .setMediaSourceFactory(asset.getMediaSourceFactory(context));
-          return builder.build();
+          // --- Custom low-RAM, quick-start LoadControl ---
+          final LoadControl loadControl =
+              new DefaultLoadControl.Builder()
+                  .setBufferDurationsMs(
+                      /* minBufferMs */ 5_000,
+                      /* maxBufferMs */ 12_000,
+                      /* bufferForPlaybackMs */ 700,
+                      /* bufferForPlaybackAfterRebufferMs */ 1_800)
+                  .setTargetBufferBytes(12 * 1024 * 1024) // ~12 MB cap
+                  .setPrioritizeTimeOverSizeThresholds(true)
+                  .build();
+
+          DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
+          DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
+          DefaultBandwidthMeter bandwidthMeter = DefaultBandwidthMeter.getSingletonInstance(context);
+          DefaultAnalyticsCollector analyticsCollector = new DefaultAnalyticsCollector(Clock.DEFAULT);
+
+          return new ExoPlayer.Builder(context)
+              .setMediaSourceFactory(asset.getMediaSourceFactory(context))
+              .setRenderersFactory(renderersFactory)
+              .setTrackSelector(trackSelector)
+              .setLoadControl(loadControl)
+              .setBandwidthMeter(bandwidthMeter)
+              .setAnalyticsCollector(analyticsCollector)
+              .build();
         });
   }
 
