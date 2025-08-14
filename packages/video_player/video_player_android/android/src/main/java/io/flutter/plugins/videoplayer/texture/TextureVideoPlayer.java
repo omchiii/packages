@@ -64,16 +64,10 @@ public final class TextureVideoPlayer extends VideoPlayer implements SurfaceProd
         () -> {
           // --- Custom, memory-friendly builder (good for short-form/TikTok-like feeds) ---
           // Buffer profile: quick start, small RAM, reasonable stability.
-          final LoadControl loadControl =
+           final LoadControl loadControl =
               new DefaultLoadControl.Builder()
                   .setBufferDurationsMs(
-                      /* minBufferMs */ 5_000,
-                      /* maxBufferMs */ 12_000,
-                      /* bufferForPlaybackMs */ 700,
-                      /* bufferForPlaybackAfterRebufferMs */ 1_800)
-                  // Cap allocator bytes to keep RAM bounded; adjust for your bitrate ladder.
-                  .setTargetBufferBytes(12 * 1024 * 1024) // ~12 MB
-                  .setPrioritizeTimeOverSizeThresholds(true)
+                      1900, 2000, 1500, 1500)
                   .build();
 
           DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
