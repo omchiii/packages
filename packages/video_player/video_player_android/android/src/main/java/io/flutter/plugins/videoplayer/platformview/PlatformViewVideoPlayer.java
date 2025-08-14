@@ -61,15 +61,10 @@ public class PlatformViewVideoPlayer extends VideoPlayer {
         options,
         () -> {
           // --- Custom low-RAM, quick-start LoadControl ---
-          final LoadControl loadControl =
+           final LoadControl loadControl =
               new DefaultLoadControl.Builder()
                   .setBufferDurationsMs(
-                      /* minBufferMs */ 5_000,
-                      /* maxBufferMs */ 12_000,
-                      /* bufferForPlaybackMs */ 700,
-                      /* bufferForPlaybackAfterRebufferMs */ 1_800)
-                  .setTargetBufferBytes(12 * 1024 * 1024) // ~12 MB cap
-                  .setPrioritizeTimeOverSizeThresholds(true)
+                      1900, 2000, 1500, 1500)
                   .build();
 
           DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context);
